@@ -45,6 +45,9 @@
       <a href="#" class="nav-item" data-section="abonnements">
         <i class="fa-solid fa-rotate"></i><span>Abonnements</span>
       </a>
+      <a href="#" class="nav-item" data-section="virements">
+        <i class="fa-solid fa-right-left"></i><span>Virements</span>
+      </a>
       <a href="#" class="nav-item" data-section="couple">
         <i class="fa-solid fa-heart"></i><span>Mode Couple</span>
       </a>
@@ -85,6 +88,7 @@
       <a href="#" class="nav-item" data-section="depenses-fixes"><i class="fa-solid fa-lock"></i>Charges fixes</a>
       <a href="#" class="nav-item" data-section="depenses-variables"><i class="fa-solid fa-receipt"></i>Dépenses</a>
       <a href="#" class="nav-item" data-section="abonnements"><i class="fa-solid fa-rotate"></i>Abonnements</a>
+      <a href="#" class="nav-item" data-section="virements"><i class="fa-solid fa-right-left"></i>Virements</a>
       <a href="#" class="nav-item" data-section="couple"><i class="fa-solid fa-heart"></i>Mode Couple</a>
       <a href="#" class="nav-item" data-section="statistiques"><i class="fa-solid fa-chart-bar"></i>Statistiques</a>
       <a href="#" class="nav-item" data-section="parametres"><i class="fa-solid fa-gear"></i>Paramètres</a>
@@ -155,6 +159,13 @@
           <div class="card-body">
             <div class="card-label">Abonnements</div>
             <div class="card-value" id="summaryAbonnements">0 €</div>
+          </div>
+        </div>
+        <div class="card card-blue">
+          <div class="card-icon"><i class="fa-solid fa-piggy-bank"></i></div>
+          <div class="card-body">
+            <div class="card-label">Épargne nette</div>
+            <div class="card-value" id="summaryEpargne">0 €</div>
           </div>
         </div>
       </div>
@@ -316,6 +327,52 @@
       </div>
     </section>
 
+    <!-- ==================== VIREMENTS ==================== -->
+    <section class="section" id="section-virements">
+      <div class="section-header">
+        <h1>Virements</h1>
+        <button class="btn-primary" id="addVirementBtn"><i class="fa-solid fa-plus"></i> Ajouter</button>
+      </div>
+
+      <!-- Résumé épargne -->
+      <div class="epargne-hero">
+        <div class="epargne-hero-col">
+          <div class="epargne-label">Épargne ce mois</div>
+          <div class="epargne-amount green" id="epargneNet">0 €</div>
+          <div class="epargne-sub" id="epargneSub">Aucun mouvement</div>
+        </div>
+        <div class="epargne-hero-col epargne-livret">
+          <div class="epargne-label">Solde estimé livret</div>
+          <div class="epargne-amount blue" id="epargneLivret">0 €</div>
+          <div class="epargne-sub">Cumulé sur l'année</div>
+        </div>
+      </div>
+
+      <!-- Résumé entrées/sorties -->
+      <div class="cards-grid-2" style="margin-bottom:1rem;">
+        <div class="total-banner green">
+          <span><i class="fa-solid fa-arrow-up"></i> Mis de côté</span>
+          <strong id="totalEpargne">0 €</strong>
+        </div>
+        <div class="total-banner red">
+          <span><i class="fa-solid fa-arrow-down"></i> Repioché</span>
+          <strong id="totalRepioche">0 €</strong>
+        </div>
+      </div>
+
+      <!-- Filtre type -->
+      <div class="category-filter" id="virementFilter">
+        <button class="cat-filter-btn active" data-vtype="all">Tous</button>
+        <button class="cat-filter-btn" data-vtype="epargne">💰 Épargne</button>
+        <button class="cat-filter-btn" data-vtype="retrait">🔙 Retraits</button>
+        <button class="cat-filter-btn" data-vtype="tiers">👨‍👩‍👧 Tiers</button>
+      </div>
+
+      <div class="list" id="listVirements">
+        <div class="empty-state"><i class="fa-solid fa-right-left"></i><p>Aucun virement ce mois</p></div>
+      </div>
+    </section>
+
     <!-- ==================== STATISTIQUES ==================== -->
     <section class="section" id="section-statistiques">
       <div class="section-header">
@@ -373,6 +430,17 @@
           <button class="btn-outline" id="fetchFromGist"><i class="fa-solid fa-cloud-arrow-down"></i> Récupérer depuis Gist</button>
         </div>
         <p class="hint" style="margin-top:0.75rem;">Dernière sync : <span id="lastSyncTime">jamais</span></p>
+      </div>
+      <div class="settings-card">
+        <h3><i class="fa-solid fa-file-export"></i> Sauvegarde locale</h3>
+        <p class="hint" style="margin-bottom:0.75rem">Exportez ou importez vos données au format JSON, indépendamment du Gist.</p>
+        <div class="settings-actions">
+          <button class="btn-outline" id="exportJSON"><i class="fa-solid fa-download"></i> Exporter JSON</button>
+          <label class="btn-outline" style="cursor:pointer;">
+            <i class="fa-solid fa-upload"></i> Importer JSON
+            <input type="file" id="importJSON" accept=".json" style="display:none" />
+          </label>
+        </div>
       </div>
       <div class="settings-card danger-zone">
         <h3><i class="fa-solid fa-triangle-exclamation"></i> Zone de danger</h3>
@@ -452,6 +520,7 @@
             <option value="assurances">Assurances</option>
             <option value="sante">Santé</option>
             <option value="education">Éducation</option>
+            <option value="famille">Famille</option>
             <option value="autre">Autre</option>
           </select>
         </div>
@@ -494,6 +563,7 @@
             <button class="cat-btn" data-cat="Santé"><i class="fa-solid fa-heart-pulse"></i><span>Santé</span></button>
             <button class="cat-btn" data-cat="Vacances"><i class="fa-solid fa-plane"></i><span>Vacances</span></button>
             <button class="cat-btn" data-cat="Cadeaux"><i class="fa-solid fa-gift"></i><span>Cadeaux</span></button>
+            <button class="cat-btn" data-cat="Famille"><i class="fa-solid fa-people-roof"></i><span>Famille</span></button>
             <button class="cat-btn" data-cat="Divers"><i class="fa-solid fa-ellipsis"></i><span>Divers</span></button>
           </div>
         </div>
@@ -555,6 +625,87 @@
       <div class="modal-footer">
         <button class="btn-outline" data-modal="modalAbonnement">Annuler</button>
         <button class="btn-primary" id="saveAbonnement">Enregistrer</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- Modal Virement -->
+  <div class="modal-overlay" id="modalVirement">
+    <div class="modal">
+      <div class="modal-header">
+        <h2 id="modalVirementTitle">Ajouter un virement</h2>
+        <button class="modal-close" data-modal="modalVirement"><i class="fa-solid fa-xmark"></i></button>
+      </div>
+      <div class="modal-body">
+
+        <!-- Type de virement -->
+        <div class="form-group">
+          <label class="label">Type de virement</label>
+          <div class="virement-type-picker" id="virementTypePicker">
+            <button class="vtype-btn active" data-vtype="epargne">
+              <i class="fa-solid fa-piggy-bank"></i>
+              <strong>Épargne</strong>
+              <span>Livret, compte…</span>
+            </button>
+            <button class="vtype-btn" data-vtype="retrait">
+              <i class="fa-solid fa-hand-holding-dollar"></i>
+              <strong>Retrait épargne</strong>
+              <span>Je reprends de l'argent</span>
+            </button>
+            <button class="vtype-btn" data-vtype="tiers">
+              <i class="fa-solid fa-people-roof"></i>
+              <strong>Vers un tiers</strong>
+              <span>Enfants, proche…</span>
+            </button>
+          </div>
+        </div>
+
+        <div class="form-group">
+          <label class="label">Montant (€) *</label>
+          <input type="number" class="input input-big" id="virementMontant" placeholder="0.00" step="0.01" min="0" inputmode="decimal" />
+        </div>
+
+        <!-- Bénéficiaire (tiers uniquement) -->
+        <div class="form-group" id="groupBeneficiaire">
+          <label class="label">Bénéficiaire</label>
+          <input type="text" class="input" id="virementBeneficiaire" placeholder="Ex: Léa, Tom…" />
+        </div>
+
+        <!-- Destination épargne -->
+        <div class="form-group" id="groupDestination">
+          <label class="label">Destination</label>
+          <select class="input" id="virementDestination">
+            <option value="livret-a">Livret A</option>
+            <option value="ldds">LDDS</option>
+            <option value="cel">CEL</option>
+            <option value="pel">PEL</option>
+            <option value="assurance-vie">Assurance-vie</option>
+            <option value="autre-epargne">Autre épargne</option>
+          </select>
+        </div>
+
+        <div class="form-group">
+          <label class="label">Date</label>
+          <input type="date" class="input" id="virementDate" />
+        </div>
+
+        <div class="form-group">
+          <label class="label">Fréquence</label>
+          <select class="input" id="virementFrequence">
+            <option value="ponctuel">Ponctuel</option>
+            <option value="mensuel">Mensuel (récurrent)</option>
+          </select>
+        </div>
+
+        <div class="form-group">
+          <label class="label">Commentaire (optionnel)</label>
+          <input type="text" class="input" id="virementComment" placeholder="Ex: Début de mois, pension alimentaire…" />
+        </div>
+
+      </div>
+      <div class="modal-footer">
+        <button class="btn-outline" data-modal="modalVirement">Annuler</button>
+        <button class="btn-primary" id="saveVirement">Enregistrer</button>
       </div>
     </div>
   </div>

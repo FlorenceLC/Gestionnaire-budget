@@ -937,3 +937,220 @@ input, select, textarea { font-family: inherit; font-size: inherit; }
   .modal { padding-bottom: env(safe-area-inset-bottom); }
   .mobile-header { padding-top: env(safe-area-inset-top); height: calc(56px + env(safe-area-inset-top)); }
 }
+
+/* ===== AJOUTS v1.1 ===== */
+
+/* FAB pulse au premier lancement */
+@keyframes fabPulse {
+  0%   { box-shadow: 0 4px 20px rgba(16,185,129,0.4); }
+  50%  { box-shadow: 0 4px 32px rgba(16,185,129,0.7); }
+  100% { box-shadow: 0 4px 20px rgba(16,185,129,0.4); }
+}
+#fab { animation: fabPulse 2s ease-in-out 1s 3; }
+
+/* Loader spinner pour sync */
+.loading-overlay {
+  position: fixed; inset: 0;
+  background: rgba(15,23,42,0.7);
+  z-index: 400;
+  display: flex; align-items: center; justify-content: center;
+  backdrop-filter: blur(4px);
+}
+.loading-spinner {
+  width: 48px; height: 48px;
+  border: 3px solid var(--border);
+  border-top-color: var(--green);
+  border-radius: 50%;
+  animation: spin 0.8s linear infinite;
+}
+
+/* Amélioration focus accessibility */
+.input:focus-visible { outline: 2px solid var(--green); outline-offset: 2px; }
+.btn-primary:focus-visible, .btn-outline:focus-visible {
+  outline: 2px solid var(--green); outline-offset: 2px;
+}
+
+/* Badge "non syncé" sur le bouton sync */
+.sync-btn.dirty i, .sync-mobile.dirty { color: var(--orange) !important; }
+
+/* Amélioration listes sur mobile */
+@media (max-width: 768px) {
+  .list-item { padding: 0.85rem 0.75rem; }
+  .item-name { font-size: 0.95rem; }
+  .item-amount { font-size: 1rem; }
+
+  /* FAB ne masque pas le contenu */
+  .section { padding-bottom: 5rem; }
+
+  /* Hero plus compact */
+  .hero-card { padding: 1.5rem; }
+  .hero-amount { font-size: 2rem; }
+}
+
+/* Transition entre sections */
+.section.active {
+  animation: fadeIn 0.2s ease;
+}
+
+/* Tooltip pour le raccourci clavier */
+.sync-btn::after {
+  content: 'Ctrl+S';
+  display: none;
+  position: absolute;
+  bottom: calc(100% + 6px); left: 50%;
+  transform: translateX(-50%);
+  background: var(--surface2);
+  border: 1px solid var(--border);
+  border-radius: 4px;
+  padding: 0.2rem 0.5rem;
+  font-size: 0.7rem;
+  color: var(--text-3);
+  white-space: nowrap;
+  pointer-events: none;
+}
+.sidebar-footer { position: relative; }
+.sync-btn:hover::after { display: block; }
+
+/* Montants colorés dans les cartes */
+.card-value.positive { color: var(--green); }
+.card-value.negative { color: var(--red); }
+
+/* Amélioration input number sur mobile */
+input[type=number] { -moz-appearance: textfield; }
+input[type=number]::-webkit-outer-spin-button,
+input[type=number]::-webkit-inner-spin-button { -webkit-appearance: none; }
+
+/* Section budgets fixes — catégorie badge */
+.cat-badge {
+  display: inline-block;
+  font-size: 0.7rem;
+  font-weight: 600;
+  padding: 0.1rem 0.45rem;
+  border-radius: 4px;
+  text-transform: capitalize;
+}
+
+/* Scrollbar modal */
+.modal::-webkit-scrollbar { width: 4px; }
+.modal::-webkit-scrollbar-thumb { background: var(--border); border-radius: 2px; }
+
+/* ===== VIREMENTS ===== */
+
+.epargne-hero {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 0.75rem;
+  margin-bottom: 1rem;
+}
+.epargne-hero-col {
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  padding: 1.25rem;
+}
+.epargne-label {
+  font-size: 0.75rem;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.07em;
+  color: var(--text-3);
+  margin-bottom: 0.4rem;
+}
+.epargne-amount {
+  font-size: 1.8rem;
+  font-weight: 800;
+  letter-spacing: -0.03em;
+  font-variant-numeric: tabular-nums;
+  line-height: 1;
+  margin-bottom: 0.3rem;
+}
+.epargne-amount.green  { color: var(--green); }
+.epargne-amount.blue   { color: var(--blue); }
+.epargne-amount.red    { color: var(--red); }
+.epargne-sub {
+  font-size: 0.75rem;
+  color: var(--text-3);
+}
+.epargne-livret {
+  border-color: rgba(59,130,246,0.4);
+  background: rgba(59,130,246,0.05);
+}
+
+/* Type picker virement */
+.virement-type-picker {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 0.5rem;
+}
+.vtype-btn {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 0.25rem;
+  padding: 0.75rem 0.4rem;
+  background: var(--bg);
+  border: 1.5px solid var(--border);
+  border-radius: var(--radius-sm);
+  color: var(--text-2);
+  text-align: center;
+  transition: all var(--transition);
+  cursor: pointer;
+}
+.vtype-btn i    { font-size: 1.3rem; margin-bottom: 0.1rem; }
+.vtype-btn strong { font-size: 0.78rem; font-weight: 700; color: var(--text); }
+.vtype-btn span   { font-size: 0.68rem; color: var(--text-3); line-height: 1.2; }
+
+.vtype-btn.active[data-vtype="epargne"] {
+  border-color: var(--green); background: var(--green-dim); color: var(--green);
+}
+.vtype-btn.active[data-vtype="epargne"] strong { color: var(--green); }
+
+.vtype-btn.active[data-vtype="retrait"] {
+  border-color: var(--orange); background: var(--orange-dim); color: var(--orange);
+}
+.vtype-btn.active[data-vtype="retrait"] strong { color: var(--orange); }
+
+.vtype-btn.active[data-vtype="tiers"] {
+  border-color: var(--purple); background: var(--purple-dim); color: var(--purple);
+}
+.vtype-btn.active[data-vtype="tiers"] strong { color: var(--purple); }
+
+.vtype-btn:not(.active):hover {
+  border-color: var(--border-light);
+  background: var(--surface2);
+}
+
+/* Badge type dans la liste */
+.vtype-badge {
+  font-size: 0.68rem;
+  font-weight: 700;
+  padding: 0.1rem 0.45rem;
+  border-radius: 4px;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+}
+.vtype-badge.epargne  { background: var(--green-dim);  color: var(--green); }
+.vtype-badge.retrait  { background: var(--orange-dim); color: var(--orange); }
+.vtype-badge.tiers    { background: var(--purple-dim); color: var(--purple); }
+
+/* Couleurs virement dans la liste */
+.amount-epargne { color: var(--green) !important; }
+.amount-retrait { color: var(--orange) !important; }
+.amount-tiers   { color: var(--purple) !important; }
+
+/* Famille catégorie couleur */
+.cat-famille { background: rgba(236,72,153,0.15); color: #EC4899; }
+
+/* Responsive virements */
+@media (max-width: 480px) {
+  .epargne-hero { grid-template-columns: 1fr; }
+  .virement-type-picker { grid-template-columns: 1fr; }
+  .vtype-btn { flex-direction: row; gap: 0.75rem; text-align: left; padding: 0.7rem 0.75rem; }
+  .vtype-btn i { font-size: 1.1rem; }
+}
+
+/* Card blue (épargne) */
+.card-blue .card-icon { background: rgba(59,130,246,0.15); color: var(--blue); }
+.cards-grid { grid-template-columns: repeat(2, 1fr); }
+@media (min-width: 640px) { .cards-grid { grid-template-columns: repeat(3, 1fr); } }
+@media (min-width: 900px) { .cards-grid { grid-template-columns: repeat(5, 1fr); } }
