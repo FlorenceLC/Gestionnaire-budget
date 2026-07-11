@@ -1,0 +1,585 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no" />
+  <meta name="theme-color" content="#0F172A" />
+  <meta name="apple-mobile-web-app-capable" content="yes" />
+  <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
+  <meta name="apple-mobile-web-app-title" content="MonBudget" />
+  <meta name="description" content="Tableau de bord financier personnel" />
+  <title>MonBudget</title>
+  <link rel="manifest" href="manifest.json" />
+  <link rel="apple-touch-icon" href="icons/icon-192.png" />
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&display=swap" />
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.0/css/all.min.css" />
+  <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js"></script>
+  <link rel="stylesheet" href="style.css" />
+</head>
+<body>
+  <!-- SIDEBAR (desktop) -->
+  <aside class="sidebar" id="sidebar">
+    <div class="sidebar-header">
+      <div class="logo">
+        <i class="fa-solid fa-chart-pie"></i>
+        <span>MonBudget</span>
+      </div>
+      <button class="sidebar-toggle" id="sidebarToggle" title="Réduire le menu">
+        <i class="fa-solid fa-chevron-left"></i>
+      </button>
+    </div>
+    <nav class="sidebar-nav">
+      <a href="#" class="nav-item active" data-section="dashboard">
+        <i class="fa-solid fa-house"></i><span>Dashboard</span>
+      </a>
+      <a href="#" class="nav-item" data-section="revenus">
+        <i class="fa-solid fa-arrow-trend-up"></i><span>Revenus</span>
+      </a>
+      <a href="#" class="nav-item" data-section="depenses-fixes">
+        <i class="fa-solid fa-lock"></i><span>Charges fixes</span>
+      </a>
+      <a href="#" class="nav-item" data-section="depenses-variables">
+        <i class="fa-solid fa-receipt"></i><span>Dépenses</span>
+      </a>
+      <a href="#" class="nav-item" data-section="abonnements">
+        <i class="fa-solid fa-rotate"></i><span>Abonnements</span>
+      </a>
+      <a href="#" class="nav-item" data-section="couple">
+        <i class="fa-solid fa-heart"></i><span>Mode Couple</span>
+      </a>
+      <a href="#" class="nav-item" data-section="statistiques">
+        <i class="fa-solid fa-chart-bar"></i><span>Statistiques</span>
+      </a>
+      <a href="#" class="nav-item" data-section="parametres">
+        <i class="fa-solid fa-gear"></i><span>Paramètres</span>
+      </a>
+    </nav>
+    <div class="sidebar-footer">
+      <button class="sync-btn" id="syncBtn" title="Synchroniser">
+        <i class="fa-solid fa-cloud-arrow-up"></i>
+        <span>Synchroniser</span>
+      </button>
+    </div>
+  </aside>
+
+  <!-- MOBILE HEADER -->
+  <header class="mobile-header" id="mobileHeader">
+    <button class="hamburger" id="hamburger" aria-label="Menu">
+      <span></span><span></span><span></span>
+    </button>
+    <div class="logo-mobile">
+      <i class="fa-solid fa-chart-pie"></i>
+      <span id="mobileTitle">Dashboard</span>
+    </div>
+    <button class="sync-mobile" id="syncMobile" title="Synchroniser">
+      <i class="fa-solid fa-cloud-arrow-up"></i>
+    </button>
+  </header>
+
+  <!-- MOBILE NAV OVERLAY -->
+  <div class="mobile-nav-overlay" id="mobileNavOverlay">
+    <nav class="mobile-nav">
+      <a href="#" class="nav-item active" data-section="dashboard"><i class="fa-solid fa-house"></i>Dashboard</a>
+      <a href="#" class="nav-item" data-section="revenus"><i class="fa-solid fa-arrow-trend-up"></i>Revenus</a>
+      <a href="#" class="nav-item" data-section="depenses-fixes"><i class="fa-solid fa-lock"></i>Charges fixes</a>
+      <a href="#" class="nav-item" data-section="depenses-variables"><i class="fa-solid fa-receipt"></i>Dépenses</a>
+      <a href="#" class="nav-item" data-section="abonnements"><i class="fa-solid fa-rotate"></i>Abonnements</a>
+      <a href="#" class="nav-item" data-section="couple"><i class="fa-solid fa-heart"></i>Mode Couple</a>
+      <a href="#" class="nav-item" data-section="statistiques"><i class="fa-solid fa-chart-bar"></i>Statistiques</a>
+      <a href="#" class="nav-item" data-section="parametres"><i class="fa-solid fa-gear"></i>Paramètres</a>
+    </nav>
+  </div>
+
+  <!-- MAIN CONTENT -->
+  <main class="main" id="main">
+
+    <!-- TOAST NOTIFICATIONS -->
+    <div class="toast-container" id="toastContainer"></div>
+
+    <!-- ==================== DASHBOARD ==================== -->
+    <section class="section active" id="section-dashboard">
+      <div class="section-header">
+        <h1>Dashboard</h1>
+        <div class="month-selector">
+          <button id="prevMonth"><i class="fa-solid fa-chevron-left"></i></button>
+          <span id="currentMonthLabel">Juillet 2026</span>
+          <button id="nextMonth"><i class="fa-solid fa-chevron-right"></i></button>
+        </div>
+      </div>
+
+      <!-- Hero : Reste à vivre -->
+      <div class="hero-card">
+        <div class="hero-label">Reste à vivre ce mois</div>
+        <div class="hero-amount" id="heroAmount">0 €</div>
+        <div class="hero-sub">
+          <span id="heroJour">0 €/jour</span>
+          <span class="dot">·</span>
+          <span id="heroSemaine">0 €/semaine</span>
+        </div>
+        <div class="hero-bar">
+          <div class="hero-bar-fill" id="heroBarFill"></div>
+        </div>
+        <div class="hero-bar-labels">
+          <span>Dépensé</span>
+          <span id="heroPercent">0%</span>
+          <span>Disponible</span>
+        </div>
+      </div>
+
+      <!-- Résumé financier -->
+      <div class="cards-grid">
+        <div class="card card-green">
+          <div class="card-icon"><i class="fa-solid fa-arrow-trend-up"></i></div>
+          <div class="card-body">
+            <div class="card-label">Revenus</div>
+            <div class="card-value" id="summaryRevenus">0 €</div>
+          </div>
+        </div>
+        <div class="card card-red">
+          <div class="card-icon"><i class="fa-solid fa-lock"></i></div>
+          <div class="card-body">
+            <div class="card-label">Charges fixes</div>
+            <div class="card-value" id="summaryFixes">0 €</div>
+          </div>
+        </div>
+        <div class="card card-orange">
+          <div class="card-icon"><i class="fa-solid fa-receipt"></i></div>
+          <div class="card-body">
+            <div class="card-label">Dépenses variables</div>
+            <div class="card-value" id="summaryVariables">0 €</div>
+          </div>
+        </div>
+        <div class="card card-purple">
+          <div class="card-icon"><i class="fa-solid fa-rotate"></i></div>
+          <div class="card-body">
+            <div class="card-label">Abonnements</div>
+            <div class="card-value" id="summaryAbonnements">0 €</div>
+          </div>
+        </div>
+      </div>
+
+      <!-- Graphiques -->
+      <div class="charts-grid">
+        <div class="chart-card">
+          <h3>Répartition des dépenses</h3>
+          <div class="chart-wrap"><canvas id="chartCategories"></canvas></div>
+        </div>
+        <div class="chart-card">
+          <h3>Évolution mensuelle</h3>
+          <div class="chart-wrap"><canvas id="chartEvolution"></canvas></div>
+        </div>
+      </div>
+
+      <!-- Dernières dépenses -->
+      <div class="card-list-wrapper">
+        <div class="card-list-header">
+          <h3>Dernières dépenses</h3>
+          <button class="btn-link" data-section="depenses-variables">Voir tout →</button>
+        </div>
+        <div class="list" id="lastDepenses">
+          <div class="empty-state"><i class="fa-solid fa-receipt"></i><p>Aucune dépense ce mois</p></div>
+        </div>
+      </div>
+    </section>
+
+    <!-- ==================== REVENUS ==================== -->
+    <section class="section" id="section-revenus">
+      <div class="section-header">
+        <h1>Revenus</h1>
+        <button class="btn-primary" id="addRevenuBtn"><i class="fa-solid fa-plus"></i> Ajouter</button>
+      </div>
+      <div class="total-banner green">
+        <span>Total mensuel</span>
+        <strong id="totalRevenus">0 €</strong>
+      </div>
+      <div class="list" id="listRevenus">
+        <div class="empty-state"><i class="fa-solid fa-arrow-trend-up"></i><p>Aucun revenu enregistré</p></div>
+      </div>
+    </section>
+
+    <!-- ==================== DÉPENSES FIXES ==================== -->
+    <section class="section" id="section-depenses-fixes">
+      <div class="section-header">
+        <h1>Charges fixes</h1>
+        <button class="btn-primary" id="addFixeBtn"><i class="fa-solid fa-plus"></i> Ajouter</button>
+      </div>
+      <div class="total-banner red">
+        <span>Total mensuel</span>
+        <strong id="totalFixes">0 €</strong>
+      </div>
+      <div class="list" id="listFixes">
+        <div class="empty-state"><i class="fa-solid fa-lock"></i><p>Aucune charge fixe enregistrée</p></div>
+      </div>
+    </section>
+
+    <!-- ==================== DÉPENSES VARIABLES ==================== -->
+    <section class="section" id="section-depenses-variables">
+      <div class="section-header">
+        <h1>Dépenses</h1>
+        <button class="btn-primary" id="addVariableBtn"><i class="fa-solid fa-plus"></i> Ajouter</button>
+      </div>
+      <div class="total-banner orange">
+        <span>Ce mois</span>
+        <strong id="totalVariables">0 €</strong>
+      </div>
+      <!-- Filtre catégories -->
+      <div class="category-filter" id="categoryFilter"></div>
+      <div class="list" id="listVariables">
+        <div class="empty-state"><i class="fa-solid fa-receipt"></i><p>Aucune dépense ce mois</p></div>
+      </div>
+    </section>
+
+    <!-- ==================== ABONNEMENTS ==================== -->
+    <section class="section" id="section-abonnements">
+      <div class="section-header">
+        <h1>Abonnements</h1>
+        <button class="btn-primary" id="addAbonnementBtn"><i class="fa-solid fa-plus"></i> Ajouter</button>
+      </div>
+      <div class="cards-grid-2">
+        <div class="total-banner purple">
+          <span>Mensuel</span>
+          <strong id="totalAboMensuel">0 €</strong>
+        </div>
+        <div class="total-banner purple-light">
+          <span>Annuel</span>
+          <strong id="totalAboAnnuel">0 €</strong>
+        </div>
+      </div>
+      <div class="list" id="listAbonnements">
+        <div class="empty-state"><i class="fa-solid fa-rotate"></i><p>Aucun abonnement enregistré</p></div>
+      </div>
+    </section>
+
+    <!-- ==================== COUPLE ==================== -->
+    <section class="section" id="section-couple">
+      <div class="section-header">
+        <h1>Mode Couple</h1>
+      </div>
+      <div class="couple-toggle-card">
+        <div>
+          <strong>Activer le mode couple</strong>
+          <p>Gérez un budget commun à deux</p>
+        </div>
+        <label class="toggle">
+          <input type="checkbox" id="coupleToggle" />
+          <span class="toggle-slider"></span>
+        </label>
+      </div>
+      <div id="coupleContent" class="hidden">
+        <div class="couple-persons">
+          <div class="person-card">
+            <h3><i class="fa-solid fa-user"></i> <span id="person1Name">Personne 1</span></h3>
+            <div class="person-stats">
+              <div><span>Revenus</span><strong id="p1Revenus">0 €</strong></div>
+              <div><span>Dépenses</span><strong id="p1Depenses">0 €</strong></div>
+              <div><span>Solde</span><strong id="p1Solde">0 €</strong></div>
+            </div>
+          </div>
+          <div class="person-card">
+            <h3><i class="fa-solid fa-user"></i> <span id="person2Name">Personne 2</span></h3>
+            <div class="person-stats">
+              <div><span>Revenus</span><strong id="p2Revenus">0 €</strong></div>
+              <div><span>Dépenses</span><strong id="p2Depenses">0 €</strong></div>
+              <div><span>Solde</span><strong id="p2Solde">0 €</strong></div>
+            </div>
+          </div>
+        </div>
+        <div class="couple-global card-list-wrapper" style="margin-top:1rem;">
+          <h3>Vision globale du foyer</h3>
+          <div class="person-stats" style="margin-top:0.75rem;">
+            <div><span>Revenus combinés</span><strong id="foyer-revenus">0 €</strong></div>
+            <div><span>Dépenses totales</span><strong id="foyer-depenses">0 €</strong></div>
+            <div><span>Reste commun</span><strong id="foyer-reste">0 €</strong></div>
+          </div>
+          <div style="margin-top:1rem;">
+            <label class="label">Répartition des charges communes</label>
+            <div class="repartition-btns">
+              <button class="btn-repartition active" data-mode="50-50">50/50</button>
+              <button class="btn-repartition" data-mode="proportionnel">Proportionnel</button>
+              <button class="btn-repartition" data-mode="personnalisé">Personnalisé</button>
+            </div>
+          </div>
+        </div>
+        <div class="couple-settings card-list-wrapper" style="margin-top:1rem;">
+          <h3>Configuration</h3>
+          <div class="form-group">
+            <label class="label">Nom Personne 1</label>
+            <input type="text" class="input" id="inputP1Name" placeholder="Ex: Alice" />
+          </div>
+          <div class="form-group">
+            <label class="label">Nom Personne 2</label>
+            <input type="text" class="input" id="inputP2Name" placeholder="Ex: Bob" />
+          </div>
+          <button class="btn-primary" id="saveCouple">Enregistrer</button>
+        </div>
+      </div>
+    </section>
+
+    <!-- ==================== STATISTIQUES ==================== -->
+    <section class="section" id="section-statistiques">
+      <div class="section-header">
+        <h1>Statistiques</h1>
+      </div>
+      <div class="stats-period">
+        <button class="period-btn active" data-months="3">3 mois</button>
+        <button class="period-btn" data-months="6">6 mois</button>
+        <button class="period-btn" data-months="12">12 mois</button>
+      </div>
+      <div class="chart-card">
+        <h3>Évolution revenus / dépenses</h3>
+        <div class="chart-wrap"><canvas id="chartStatsEvolution"></canvas></div>
+      </div>
+      <div class="chart-card">
+        <h3>Reste à vivre mensuel</h3>
+        <div class="chart-wrap"><canvas id="chartStatsReste"></canvas></div>
+      </div>
+      <div class="chart-card">
+        <h3>Dépenses par catégorie (cumulé)</h3>
+        <div class="chart-wrap"><canvas id="chartStatsCat"></canvas></div>
+      </div>
+    </section>
+
+    <!-- ==================== PARAMÈTRES ==================== -->
+    <section class="section" id="section-parametres">
+      <div class="section-header">
+        <h1>Paramètres</h1>
+      </div>
+      <div class="settings-card">
+        <h3><i class="fa-brands fa-github"></i> Connexion GitHub Gist</h3>
+        <div class="form-group">
+          <label class="label">Token GitHub personnel</label>
+          <div class="input-with-toggle">
+            <input type="password" class="input" id="githubToken" placeholder="ghp_xxxxxxxxxxxxxxxxxxxx" />
+            <button class="toggle-vis" id="toggleTokenVis"><i class="fa-solid fa-eye"></i></button>
+          </div>
+          <p class="hint">Générer sur github.com → Settings → Developer settings → Personal access tokens (scope: gist)</p>
+        </div>
+        <div class="form-group">
+          <label class="label">ID du Gist</label>
+          <input type="text" class="input" id="gistId" placeholder="ex: a1b2c3d4e5f6..." />
+          <p class="hint">Laisser vide pour créer un nouveau Gist automatiquement</p>
+        </div>
+        <div class="settings-actions">
+          <button class="btn-primary" id="saveSettings"><i class="fa-solid fa-floppy-disk"></i> Enregistrer</button>
+          <button class="btn-outline" id="testConnection"><i class="fa-solid fa-plug"></i> Tester la connexion</button>
+        </div>
+        <div class="connection-status" id="connectionStatus"></div>
+      </div>
+      <div class="settings-card">
+        <h3><i class="fa-solid fa-cloud"></i> Synchronisation</h3>
+        <div class="settings-actions">
+          <button class="btn-primary" id="syncNow"><i class="fa-solid fa-cloud-arrow-up"></i> Envoyer vers Gist</button>
+          <button class="btn-outline" id="fetchFromGist"><i class="fa-solid fa-cloud-arrow-down"></i> Récupérer depuis Gist</button>
+        </div>
+        <p class="hint" style="margin-top:0.75rem;">Dernière sync : <span id="lastSyncTime">jamais</span></p>
+      </div>
+      <div class="settings-card danger-zone">
+        <h3><i class="fa-solid fa-triangle-exclamation"></i> Zone de danger</h3>
+        <button class="btn-danger" id="resetData">Effacer toutes les données locales</button>
+      </div>
+    </section>
+
+  </main>
+
+  <!-- ==================== MODALS ==================== -->
+
+  <!-- Modal Revenu -->
+  <div class="modal-overlay" id="modalRevenu">
+    <div class="modal">
+      <div class="modal-header">
+        <h2 id="modalRevenuTitle">Ajouter un revenu</h2>
+        <button class="modal-close" data-modal="modalRevenu"><i class="fa-solid fa-xmark"></i></button>
+      </div>
+      <div class="modal-body">
+        <div class="form-group">
+          <label class="label">Nom *</label>
+          <input type="text" class="input" id="revenuNom" placeholder="Ex: Salaire" />
+        </div>
+        <div class="form-group">
+          <label class="label">Montant (€) *</label>
+          <input type="number" class="input" id="revenuMontant" placeholder="0.00" step="0.01" min="0" />
+        </div>
+        <div class="form-group">
+          <label class="label">Date</label>
+          <input type="date" class="input" id="revenuDate" />
+        </div>
+        <div class="form-group">
+          <label class="label">Fréquence</label>
+          <select class="input" id="revenuFrequence">
+            <option value="mensuel">Mensuel</option>
+            <option value="ponctuel">Ponctuel</option>
+          </select>
+        </div>
+        <div class="form-group">
+          <label class="label">Personne (mode couple)</label>
+          <select class="input" id="revenuPersonne">
+            <option value="commun">Commun</option>
+            <option value="personne1">Personne 1</option>
+            <option value="personne2">Personne 2</option>
+          </select>
+        </div>
+      </div>
+      <div class="modal-footer">
+        <button class="btn-outline" data-modal="modalRevenu">Annuler</button>
+        <button class="btn-primary" id="saveRevenu">Enregistrer</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- Modal Dépense Fixe -->
+  <div class="modal-overlay" id="modalFixe">
+    <div class="modal">
+      <div class="modal-header">
+        <h2 id="modalFixeTitle">Ajouter une charge</h2>
+        <button class="modal-close" data-modal="modalFixe"><i class="fa-solid fa-xmark"></i></button>
+      </div>
+      <div class="modal-body">
+        <div class="form-group">
+          <label class="label">Nom *</label>
+          <input type="text" class="input" id="fixeNom" placeholder="Ex: Loyer" />
+        </div>
+        <div class="form-group">
+          <label class="label">Montant (€) *</label>
+          <input type="number" class="input" id="fixeMontant" placeholder="0.00" step="0.01" min="0" />
+        </div>
+        <div class="form-group">
+          <label class="label">Catégorie</label>
+          <select class="input" id="fixeCategorie">
+            <option value="logement">Logement</option>
+            <option value="energie">Énergie</option>
+            <option value="transports">Transports</option>
+            <option value="assurances">Assurances</option>
+            <option value="sante">Santé</option>
+            <option value="education">Éducation</option>
+            <option value="autre">Autre</option>
+          </select>
+        </div>
+        <div class="form-group">
+          <label class="label">Fréquence</label>
+          <select class="input" id="fixeFrequence">
+            <option value="mensuel">Mensuelle</option>
+            <option value="annuel">Annuelle (÷12)</option>
+            <option value="trimestriel">Trimestrielle (÷3)</option>
+          </select>
+        </div>
+      </div>
+      <div class="modal-footer">
+        <button class="btn-outline" data-modal="modalFixe">Annuler</button>
+        <button class="btn-primary" id="saveFixe">Enregistrer</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- Modal Dépense Variable -->
+  <div class="modal-overlay" id="modalVariable">
+    <div class="modal">
+      <div class="modal-header">
+        <h2 id="modalVariableTitle">Ajouter une dépense</h2>
+        <button class="modal-close" data-modal="modalVariable"><i class="fa-solid fa-xmark"></i></button>
+      </div>
+      <div class="modal-body">
+        <div class="form-group">
+          <label class="label">Montant (€) *</label>
+          <input type="number" class="input input-big" id="variableMontant" placeholder="0.00" step="0.01" min="0" inputmode="decimal" />
+        </div>
+        <div class="form-group">
+          <label class="label">Catégorie *</label>
+          <div class="cat-picker" id="catPicker">
+            <button class="cat-btn active" data-cat="Courses"><i class="fa-solid fa-basket-shopping"></i><span>Courses</span></button>
+            <button class="cat-btn" data-cat="Essence"><i class="fa-solid fa-gas-pump"></i><span>Essence</span></button>
+            <button class="cat-btn" data-cat="Restaurant"><i class="fa-solid fa-utensils"></i><span>Restaurant</span></button>
+            <button class="cat-btn" data-cat="Loisirs"><i class="fa-solid fa-gamepad"></i><span>Loisirs</span></button>
+            <button class="cat-btn" data-cat="Shopping"><i class="fa-solid fa-bag-shopping"></i><span>Shopping</span></button>
+            <button class="cat-btn" data-cat="Santé"><i class="fa-solid fa-heart-pulse"></i><span>Santé</span></button>
+            <button class="cat-btn" data-cat="Vacances"><i class="fa-solid fa-plane"></i><span>Vacances</span></button>
+            <button class="cat-btn" data-cat="Cadeaux"><i class="fa-solid fa-gift"></i><span>Cadeaux</span></button>
+            <button class="cat-btn" data-cat="Divers"><i class="fa-solid fa-ellipsis"></i><span>Divers</span></button>
+          </div>
+        </div>
+        <div class="form-group">
+          <label class="label">Date</label>
+          <input type="date" class="input" id="variableDate" />
+        </div>
+        <div class="form-group">
+          <label class="label">Commentaire (optionnel)</label>
+          <input type="text" class="input" id="variableComment" placeholder="Ex: Supermarché Leclerc" />
+        </div>
+        <div class="form-group">
+          <label class="label">Personne (mode couple)</label>
+          <select class="input" id="variablePersonne">
+            <option value="commun">Commun</option>
+            <option value="personne1">Personne 1</option>
+            <option value="personne2">Personne 2</option>
+          </select>
+        </div>
+      </div>
+      <div class="modal-footer">
+        <button class="btn-outline" data-modal="modalVariable">Annuler</button>
+        <button class="btn-primary" id="saveVariable">Enregistrer</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- Modal Abonnement -->
+  <div class="modal-overlay" id="modalAbonnement">
+    <div class="modal">
+      <div class="modal-header">
+        <h2 id="modalAbonnementTitle">Ajouter un abonnement</h2>
+        <button class="modal-close" data-modal="modalAbonnement"><i class="fa-solid fa-xmark"></i></button>
+      </div>
+      <div class="modal-body">
+        <div class="form-group">
+          <label class="label">Nom *</label>
+          <input type="text" class="input" id="aboNom" placeholder="Ex: Netflix" />
+        </div>
+        <div class="form-group">
+          <label class="label">Montant (€) *</label>
+          <input type="number" class="input" id="aboMontant" placeholder="0.00" step="0.01" min="0" />
+        </div>
+        <div class="form-group">
+          <label class="label">Fréquence</label>
+          <select class="input" id="aboFrequence">
+            <option value="mensuel">Mensuel</option>
+            <option value="annuel">Annuel (÷12)</option>
+          </select>
+        </div>
+        <div class="form-group toggle-row">
+          <label class="label">Actif</label>
+          <label class="toggle">
+            <input type="checkbox" id="aboActif" checked />
+            <span class="toggle-slider"></span>
+          </label>
+        </div>
+      </div>
+      <div class="modal-footer">
+        <button class="btn-outline" data-modal="modalAbonnement">Annuler</button>
+        <button class="btn-primary" id="saveAbonnement">Enregistrer</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- Modal Confirmation Delete -->
+  <div class="modal-overlay" id="modalConfirm">
+    <div class="modal modal-sm">
+      <div class="modal-header">
+        <h2>Confirmer la suppression</h2>
+        <button class="modal-close" data-modal="modalConfirm"><i class="fa-solid fa-xmark"></i></button>
+      </div>
+      <div class="modal-body">
+        <p>Cette action est irréversible. Continuer ?</p>
+      </div>
+      <div class="modal-footer">
+        <button class="btn-outline" data-modal="modalConfirm">Annuler</button>
+        <button class="btn-danger" id="confirmDelete">Supprimer</button>
+      </div>
+    </div>
+  </div>
+
+  <script src="js/data.js"></script>
+  <script src="js/gist.js"></script>
+  <script src="js/ui.js"></script>
+  <script src="js/charts.js"></script>
+  <script src="js/app.js"></script>
+</body>
+</html>
