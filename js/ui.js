@@ -25,7 +25,8 @@ function navigateTo(section) {
   const titles = {
     'dashboard': 'Dashboard', 'revenus': 'Revenus', 'depenses-fixes': 'Charges fixes',
     'depenses-variables': 'Dépenses', 'abonnements': 'Abonnements',
-    'couple': 'Mode Couple', 'statistiques': 'Statistiques', 'parametres': 'Paramètres'
+    'virements': 'Virements', 'couple': 'Mode Couple',
+    'statistiques': 'Statistiques', 'parametres': 'Paramètres'
   };
   const mt = document.getElementById('mobileTitle');
   if (mt) mt.textContent = titles[section] || section;
@@ -40,14 +41,15 @@ function navigateTo(section) {
 
 function renderSection(section) {
   switch (section) {
-    case 'dashboard':       renderDashboard(); break;
-    case 'revenus':         renderRevenus(); break;
-    case 'depenses-fixes':  renderFixes(); break;
+    case 'dashboard':          renderDashboard(); break;
+    case 'revenus':            renderRevenus(); break;
+    case 'depenses-fixes':     renderFixes(); break;
     case 'depenses-variables': renderVariables(); break;
-    case 'abonnements':     renderAbonnements(); break;
-    case 'couple':          renderCouple(); break;
-    case 'statistiques':    renderStats(); break;
-    case 'parametres':      renderParams(); break;
+    case 'abonnements':        renderAbonnements(); break;
+    case 'virements':          renderVirements(); break;
+    case 'couple':             renderCouple(); break;
+    case 'statistiques':       renderStats(); break;
+    case 'parametres':         renderParams(); break;
   }
 }
 
@@ -87,6 +89,41 @@ function renderDashboard() {
   const { currentMonth: m, currentYear: y } = AppState.ui;
   const data = AppState.data;
 
+  // État vide guidé : si aucune donnée du tout
+  const hasAnyData = data.revenus.length || data.depenses_fixes.length || data.abonnements.length || data.depenses_variables.length;
+  const welcomeBanner = document.getElementById('welcomeBanner');
+  if (!hasAnyData && !welcomeBanner) {
+    const banner = document.createElement('div');
+    banner.id = 'welcomeBanner';
+    banner.style.cssText = `
+      background: linear-gradient(135deg, rgba(16,185,129,0.1) 0%, rgba(59,130,246,0.08) 100%);
+      border: 1px solid rgba(16,185,129,0.3); border-radius: 14px;
+      padding: 1.5rem; margin-bottom: 1.5rem; text-align: center;
+    `;
+    banner.innerHTML = `
+      <div style="font-size:2rem; margin-bottom:0.5rem">👋</div>
+      <h2 style="font-size:1.1rem; font-weight:700; margin-bottom:0.35rem">Bienvenue sur MonBudget</h2>
+      <p style="font-size:0.85rem; color:var(--text-2); margin-bottom:1rem; line-height:1.5">
+        Commencez par ajouter vos revenus et charges fixes pour calculer votre reste à vivre.
+      </p>
+      <div style="display:flex; gap:0.5rem; justify-content:center; flex-wrap:wrap;">
+        <button class="btn-primary" style="font-size:0.8rem; padding:0.5rem 1rem;" data-section="revenus">
+          <i class="fa-solid fa-arrow-trend-up"></i> Ajouter un revenu
+        </button>
+        <button class="btn-outline" style="font-size:0.8rem; padding:0.5rem 1rem;" data-section="depenses-fixes">
+          <i class="fa-solid fa-lock"></i> Ajouter une charge
+        </button>
+        <button class="btn-outline" style="font-size:0.8rem; padding:0.5rem 1rem;" data-section="parametres">
+          <i class="fa-brands fa-github"></i> Configurer Gist
+        </button>
+      </div>
+    `;
+    const hero = document.querySelector('.hero-card');
+    if (hero) hero.parentNode.insertBefore(banner, hero);
+  } else if (hasAnyData && welcomeBanner) {
+    welcomeBanner.remove();
+  }
+
   document.getElementById('currentMonthLabel').textContent =
     capitalizeFirst(getMonthLabel(m, y));
 
@@ -101,6 +138,12 @@ function renderDashboard() {
   document.getElementById('summaryFixes').textContent       = formatMoney(fixes);
   document.getElementById('summaryVariables').textContent   = formatMoney(variables);
   document.getElementById('summaryAbonnements').textContent = formatMoney(abos);
+  const epNet = getTotalEpargneMois(data, m, y) - getTotalRetraitMois(data, m, y);
+  const epEl  = document.getElementById('summaryEpargne');
+  if (epEl) {
+    epEl.textContent = formatMoney(epNet);
+    epEl.className = 'card-value' + (epNet >= 0 ? '' : ' negative');
+  }
 
   // Hero
   const heroEl = document.getElementById('heroAmount');
@@ -272,6 +315,114 @@ function renderAbonnements() {
       </div>
     </div>`;
   }).join('');
+}
+
+// ===== VIREMENTS =====
+function renderVirements() {
+  const { currentMonth: m, currentYear: y } = AppState.ui;
+  const data = AppState.data;
+  const vfilter = AppState.ui.virementFilter || 'all';
+
+  const moisItems = getVirementsMois(data, m, y);
+
+  // Ajouter les récurrents sans date ce mois
+  const recurrents = getVirementsRecurrents(data);
+  const moisIds = new Set(moisItems.map(v => v.id));
+  const extraRec = recurrents.filter(v => !moisIds.has(v.id));
+  const allItems = [...moisItems, ...extraRec].sort((a, b) => new Date(b.date || 0) - new Date(a.date || 0));
+
+  const totalEp = getTotalEpargneMois(data, m, y);
+  const totalRet = getTotalRetraitMois(data, m, y);
+  const netEpargne = totalEp - totalRet;
+  const soldeLivret = getSoldeLivretAnnee(data, y);
+
+  // Hero
+  const netEl = document.getElementById('epargneNet');
+  netEl.textContent = formatMoney(Math.abs(netEpargne));
+  netEl.className = 'epargne-amount ' + (netEpargne >= 0 ? 'green' : 'red');
+
+  const subEl = document.getElementById('epargneSub');
+  if (allItems.length === 0) {
+    subEl.textContent = 'Aucun mouvement ce mois';
+  } else {
+    const parts = [];
+    if (totalEp > 0) parts.push(`${formatMoney(totalEp)} épargnés`);
+    if (totalRet > 0) parts.push(`${formatMoney(totalRet)} repris`);
+    subEl.textContent = parts.join(' · ');
+  }
+
+  document.getElementById('epargneLivret').textContent = formatMoney(soldeLivret);
+  document.getElementById('totalEpargne').textContent = formatMoney(totalEp);
+  document.getElementById('totalRepioche').textContent = formatMoney(totalRet);
+
+  // Filtre
+  const filtered = vfilter === 'all' ? allItems : allItems.filter(v => v.type === vfilter);
+
+  // Liste
+  const list = document.getElementById('listVirements');
+  if (filtered.length === 0) {
+    list.innerHTML = '<div class="empty-state"><i class="fa-solid fa-right-left"></i><p>Aucun virement ce mois</p></div>';
+    return;
+  }
+
+  list.innerHTML = filtered.map(v => {
+    const icon = VTYPE_ICONS[v.type] || 'fa-right-left';
+    const amountClass = `amount-${v.type}`;
+    const sign = v.type === 'retrait' ? '+' : '−';
+    const badgeClass = `vtype-badge ${v.type}`;
+    const label = VTYPE_LABELS[v.type] || v.type;
+
+    let subtitle = '';
+    if (v.type === 'epargne' || v.type === 'retrait') {
+      subtitle = v.destination ? v.destination.replace('-', ' ').toUpperCase() : 'Livret A';
+    } else if (v.type === 'tiers') {
+      subtitle = v.beneficiaire || 'Tiers';
+    }
+    if (v.commentaire) subtitle += (subtitle ? ' — ' : '') + v.commentaire;
+    if (v.frequence === 'mensuel') subtitle += ' · Récurrent';
+
+    return `<div class="list-item">
+      <div class="item-icon cat-${v.type === 'epargne' ? 'courses' : v.type === 'retrait' ? 'essence' : 'loisirs'}">
+        <i class="fa-solid ${icon}"></i>
+      </div>
+      <div class="item-info">
+        <div class="item-name" style="display:flex;align-items:center;gap:0.4rem;">
+          <span class="${badgeClass}">${label}</span>
+          ${subtitle ? `<span style="font-size:0.82rem;color:var(--text-2)">${subtitle}</span>` : ''}
+        </div>
+        <div class="item-meta">${v.date ? formatDate(v.date) : 'Récurrent mensuel'}</div>
+      </div>
+      <div class="item-amount ${amountClass}">${sign} ${formatMoney(v.montant)}</div>
+      <div class="item-actions">
+        <button onclick="editVirement('${v.id}')" title="Modifier"><i class="fa-solid fa-pen"></i></button>
+        <button class="del-btn" onclick="confirmDelete('virements','${v.id}')" title="Supprimer"><i class="fa-solid fa-trash"></i></button>
+      </div>
+    </div>`;
+  }).join('');
+}
+
+function editVirement(id) {
+  const v = getItem('virements', id);
+  if (!v) return;
+  AppState.ui.editingId = id;
+  document.getElementById('modalVirementTitle').textContent = 'Modifier le virement';
+  // Type picker
+  document.querySelectorAll('.vtype-btn').forEach(b => b.classList.toggle('active', b.dataset.vtype === v.type));
+  updateVirementFormFields(v.type);
+  document.getElementById('virementMontant').value = v.montant;
+  document.getElementById('virementDate').value = v.date || '';
+  document.getElementById('virementFrequence').value = v.frequence || 'ponctuel';
+  document.getElementById('virementComment').value = v.commentaire || '';
+  if (v.type === 'tiers') document.getElementById('virementBeneficiaire').value = v.beneficiaire || '';
+  if (v.type === 'epargne' || v.type === 'retrait') document.getElementById('virementDestination').value = v.destination || 'livret-a';
+  openModal('modalVirement');
+}
+
+function updateVirementFormFields(type) {
+  const isTiers = type === 'tiers';
+  const isEpargne = type === 'epargne' || type === 'retrait';
+  document.getElementById('groupBeneficiaire').style.display = isTiers ? '' : 'none';
+  document.getElementById('groupDestination').style.display = isEpargne ? '' : 'none';
 }
 
 // ===== COUPLE =====

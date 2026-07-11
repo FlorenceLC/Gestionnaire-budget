@@ -15,13 +15,16 @@ function init() {
   setupForms();
   setupMonthNav();
   setupCategoryFilter();
+  setupVirementFilter();
   setupStats();
   setupParams();
   setupCouple();
   setupSync();
 
-  // Render initial
-  navigateTo('dashboard');
+  // Render initial — support du hash URL (raccourcis PWA)
+  const hashSection = window.location.hash.replace('#', '') || 'dashboard';
+  const validSections = ['dashboard','revenus','depenses-fixes','depenses-variables','abonnements','couple','statistiques','parametres'];
+  navigateTo(validSections.includes(hashSection) ? hashSection : 'dashboard');
 
   // Charger depuis le Gist au démarrage si configuré
   if (AppState.settings.githubToken && AppState.settings.gistId) {
@@ -34,11 +37,13 @@ function init() {
 
 // ===== NAVIGATION =====
 function setupNavigation() {
-  document.querySelectorAll('[data-section]').forEach(el => {
-    el.addEventListener('click', e => {
+  // Délégation globale : capture les nav-items statiques ET les btn-link dynamiques
+  document.addEventListener('click', e => {
+    const el = e.target.closest('[data-section]');
+    if (el) {
       e.preventDefault();
       navigateTo(el.dataset.section);
-    });
+    }
   });
 }
 
@@ -118,6 +123,17 @@ function setupCategoryFilter() {
   });
 }
 
+
+// ===== VIREMENT FILTER =====
+function setupVirementFilter() {
+  document.getElementById('virementFilter').addEventListener('click', e => {
+    const btn = e.target.closest('.cat-filter-btn');
+    if (btn) {
+      AppState.ui.virementFilter = btn.dataset.vtype;
+      renderVirements();
+    }
+  });
+}
 // ===== STATS PERIOD =====
 function setupStats() {
   document.querySelectorAll('.period-btn').forEach(btn => {
@@ -144,7 +160,8 @@ function setupForms() {
   document.getElementById('saveRevenu').addEventListener('click', () => {
     const nom = document.getElementById('revenuNom').value.trim();
     const montant = parseFloat(document.getElementById('revenuMontant').value);
-    if (!nom || isNaN(montant) || montant <= 0) { showToast('Remplissez le nom et le montant', 'error'); return; }
+    if (!validateNom(nom)) { showToast('Entrez un nom valide', 'error'); document.getElementById('revenuNom').focus(); return; }
+    if (!validateMontant(montant)) { showToast('Entrez un montant valide (> 0)', 'error'); document.getElementById('revenuMontant').focus(); return; }
 
     const obj = {
       nom,
@@ -178,7 +195,8 @@ function setupForms() {
   document.getElementById('saveFixe').addEventListener('click', () => {
     const nom = document.getElementById('fixeNom').value.trim();
     const montant = parseFloat(document.getElementById('fixeMontant').value);
-    if (!nom || isNaN(montant) || montant <= 0) { showToast('Remplissez le nom et le montant', 'error'); return; }
+    if (!validateNom(nom)) { showToast('Entrez un nom valide', 'error'); document.getElementById('fixeNom').focus(); return; }
+    if (!validateMontant(montant)) { showToast('Entrez un montant valide (> 0)', 'error'); document.getElementById('fixeMontant').focus(); return; }
 
     const obj = {
       nom, montant,
@@ -222,7 +240,7 @@ function setupForms() {
   document.getElementById('saveVariable').addEventListener('click', () => {
     const montant = parseFloat(document.getElementById('variableMontant').value);
     const activeCat = document.querySelector('.cat-btn.active');
-    if (isNaN(montant) || montant <= 0) { showToast('Entrez un montant valide', 'error'); return; }
+    if (!validateMontant(montant)) { showToast('Entrez un montant valide (> 0)', 'error'); document.getElementById('variableMontant').focus(); return; }
 
     const obj = {
       montant,
@@ -258,7 +276,8 @@ function setupForms() {
   document.getElementById('saveAbonnement').addEventListener('click', () => {
     const nom = document.getElementById('aboNom').value.trim();
     const montant = parseFloat(document.getElementById('aboMontant').value);
-    if (!nom || isNaN(montant) || montant <= 0) { showToast('Remplissez le nom et le montant', 'error'); return; }
+    if (!validateNom(nom)) { showToast('Entrez un nom valide', 'error'); document.getElementById('aboNom').focus(); return; }
+    if (!validateMontant(montant)) { showToast('Entrez un montant valide (> 0)', 'error'); document.getElementById('aboMontant').focus(); return; }
 
     const obj = {
       nom, montant,
@@ -357,6 +376,29 @@ function setupParams() {
     showToast('Données effacées', 'success');
     navigateTo('dashboard');
   });
+
+  // Export JSON
+  document.getElementById('exportJSON').addEventListener('click', () => {
+    exportJSON();
+    showToast('Export téléchargé', 'success');
+  });
+
+  // Import JSON
+  document.getElementById('importJSON').addEventListener('change', async e => {
+    const file = e.target.files[0];
+    if (!file) return;
+    try {
+      const text = await file.text();
+      const data = importJSON(text);
+      if (!confirm('Remplacer toutes les données actuelles par ce fichier ?')) return;
+      AppState.data = deepMergeData(JSON.parse(JSON.stringify(DEFAULT_DATA)), data);
+      showToast('Données importées avec succès', 'success');
+      navigateTo('dashboard');
+    } catch (err) {
+      showToast(err.message, 'error');
+    }
+    e.target.value = '';
+  });
 }
 
 // ===== SYNC =====
@@ -394,8 +436,7 @@ async function doFetchFromGist() {
   }
   try {
     const data = await loadFromGist();
-    // Fusionner avec la structure par défaut pour la robustesse
-    AppState.data = { ...JSON.parse(JSON.stringify(DEFAULT_DATA)), ...data };
+    AppState.data = deepMergeData(JSON.parse(JSON.stringify(DEFAULT_DATA)), data);
     showToast('Données récupérées depuis le Gist', 'success');
     updateLastSync();
     navigateTo('dashboard');
@@ -405,14 +446,40 @@ async function doFetchFromGist() {
 }
 
 async function autoLoadFromGist() {
+  // Afficher un indicateur discret
+  const syncBtn = document.getElementById('syncBtn');
+  const syncMobile = document.getElementById('syncMobile');
+  syncBtn?.classList.add('syncing');
+  syncMobile?.classList.add('syncing');
   try {
     const data = await loadFromGist();
-    AppState.data = { ...JSON.parse(JSON.stringify(DEFAULT_DATA)), ...data };
+    // Fusion sécurisée avec les valeurs par défaut
+    AppState.data = deepMergeData(JSON.parse(JSON.stringify(DEFAULT_DATA)), data);
     updateLastSync();
     renderDashboard();
+    showToast('Données chargées depuis le Gist', 'success');
   } catch (e) {
-    // Silencieux au démarrage
+    // Silencieux au démarrage si le Gist est vide ou inaccessible
+    console.warn('[MonBudget] Auto-sync au démarrage échoué :', e.message);
+  } finally {
+    syncBtn?.classList.remove('syncing');
+    syncMobile?.classList.remove('syncing');
   }
+}
+
+// Fusion profonde pour préserver les tableaux
+function deepMergeData(defaults, remote) {
+  const result = { ...defaults };
+  for (const key of Object.keys(remote)) {
+    if (Array.isArray(remote[key])) {
+      result[key] = remote[key];
+    } else if (remote[key] && typeof remote[key] === 'object') {
+      result[key] = { ...(defaults[key] || {}), ...remote[key] };
+    } else if (remote[key] !== undefined) {
+      result[key] = remote[key];
+    }
+  }
+  return result;
 }
 
 // ===== CLEAR FORMS =====
@@ -441,3 +508,162 @@ function setupPWA() {
     deferredPrompt = e;
   });
 }
+
+// ===== KEYBOARD SHORTCUTS =====
+document.addEventListener('keydown', e => {
+  // Escape : fermer la modal ouverte
+  if (e.key === 'Escape') {
+    const open = document.querySelector('.modal-overlay.open');
+    if (open) { closeModal(open.id); return; }
+    // Fermer le menu mobile
+    if (document.getElementById('mobileNavOverlay').classList.contains('open')) {
+      closeMobileNav();
+    }
+  }
+  // Ctrl/Cmd+S : synchroniser
+  if ((e.ctrlKey || e.metaKey) && e.key === 's') {
+    e.preventDefault();
+    doSync();
+  }
+  // N : nouvelle dépense rapide (si aucun input actif)
+  if (e.key === 'n' && !['INPUT','TEXTAREA','SELECT'].includes(document.activeElement?.tagName)) {
+    const activeSection = document.querySelector('.section.active')?.id;
+    if (activeSection === 'section-depenses-variables') {
+      document.getElementById('addVariableBtn')?.click();
+    } else if (activeSection === 'section-revenus') {
+      document.getElementById('addRevenuBtn')?.click();
+    }
+  }
+});
+
+// ===== INDICATEUR SYNC =====
+let pendingSync = false;
+const _origScheduleSync = scheduleSync;
+// Wrapper pour indiquer les données non sauvegardées
+function markDirty() {
+  pendingSync = true;
+  document.title = '• MonBudget';
+}
+function markClean() {
+  pendingSync = false;
+  document.title = 'MonBudget';
+}
+
+// Avertir si fermeture avec données non syncées
+window.addEventListener('beforeunload', e => {
+  if (pendingSync && AppState.settings.githubToken) {
+    e.preventDefault();
+    e.returnValue = 'Des données ne sont pas encore synchronisées. Quitter ?';
+  }
+});
+
+// ===== QUICK-ADD DEPUIS LE DASHBOARD =====
+// Bouton flottant rapide sur mobile (ajout dépense en 1 tap)
+function injectFAB() {
+  if (document.getElementById('fab')) return;
+  const fab = document.createElement('button');
+  fab.id = 'fab';
+  fab.title = 'Ajouter une dépense';
+  fab.innerHTML = '<i class="fa-solid fa-plus"></i>';
+  fab.style.cssText = `
+    position:fixed; bottom:1.5rem; right:1.5rem; z-index:90;
+    width:56px; height:56px; border-radius:50%;
+    background:var(--green); color:#fff; font-size:1.4rem;
+    box-shadow:0 4px 20px rgba(16,185,129,0.4);
+    display:flex; align-items:center; justify-content:center;
+    border:none; cursor:pointer;
+    transition:transform 0.2s, box-shadow 0.2s;
+  `;
+  fab.addEventListener('click', () => {
+    // Naviguer vers dépenses variables et ouvrir le modal
+    navigateTo('depenses-variables');
+    setTimeout(() => document.getElementById('addVariableBtn')?.click(), 100);
+  });
+  fab.addEventListener('mouseenter', () => {
+    fab.style.transform = 'scale(1.1)';
+    fab.style.boxShadow = '0 6px 24px rgba(16,185,129,0.5)';
+  });
+  fab.addEventListener('mouseleave', () => {
+    fab.style.transform = 'scale(1)';
+    fab.style.boxShadow = '0 4px 20px rgba(16,185,129,0.4)';
+  });
+  document.body.appendChild(fab);
+}
+
+// Injecter le FAB au démarrage
+document.addEventListener('DOMContentLoaded', () => {
+  setTimeout(injectFAB, 500);
+});
+
+// ===== VIREMENTS FORM =====
+function setupVirementsForm() {
+  // Bouton ajouter
+  document.getElementById('addVirementBtn').addEventListener('click', () => {
+    AppState.ui.editingId = null;
+    document.getElementById('modalVirementTitle').textContent = 'Ajouter un virement';
+    // Reset
+    document.querySelectorAll('.vtype-btn').forEach((b, i) => b.classList.toggle('active', i === 0));
+    updateVirementFormFields('epargne');
+    document.getElementById('virementMontant').value = '';
+    document.getElementById('virementDate').value = today();
+    document.getElementById('virementFrequence').value = 'ponctuel';
+    document.getElementById('virementComment').value = '';
+    document.getElementById('virementBeneficiaire').value = '';
+    document.getElementById('virementDestination').value = 'livret-a';
+    openModal('modalVirement');
+  });
+
+  // Type picker
+  document.getElementById('virementTypePicker').addEventListener('click', e => {
+    const btn = e.target.closest('.vtype-btn');
+    if (btn) {
+      document.querySelectorAll('.vtype-btn').forEach(b => b.classList.remove('active'));
+      btn.classList.add('active');
+      updateVirementFormFields(btn.dataset.vtype);
+    }
+  });
+
+  // Sauvegarder
+  document.getElementById('saveVirement').addEventListener('click', () => {
+    const montant = parseFloat(document.getElementById('virementMontant').value);
+    const activeType = document.querySelector('.vtype-btn.active');
+    const type = activeType?.dataset.vtype || 'epargne';
+    if (!validateMontant(montant)) {
+      showToast('Entrez un montant valide (> 0)', 'error');
+      document.getElementById('virementMontant').focus();
+      return;
+    }
+
+    const obj = {
+      type,
+      montant,
+      date: document.getElementById('virementDate').value || today(),
+      frequence: document.getElementById('virementFrequence').value,
+      commentaire: document.getElementById('virementComment').value.trim(),
+      beneficiaire: type === 'tiers' ? document.getElementById('virementBeneficiaire').value.trim() : '',
+      destination: (type === 'epargne' || type === 'retrait') ? document.getElementById('virementDestination').value : ''
+    };
+
+    if (AppState.ui.editingId) {
+      updateItem('virements', AppState.ui.editingId, obj);
+      showToast('Virement modifié', 'success');
+    } else {
+      addItem('virements', obj);
+      const msgs = {
+        epargne: '💰 Épargne enregistrée !',
+        retrait: '🔙 Retrait enregistré',
+        tiers: `💸 Virement vers ${obj.beneficiaire || 'tiers'} enregistré`
+      };
+      showToast(msgs[type] || 'Virement ajouté', 'success');
+    }
+    closeModal('modalVirement');
+    scheduleSync();
+    renderVirements();
+    renderDashboard();
+  });
+}
+
+// Appel au démarrage (après DOMContentLoaded)
+document.addEventListener('DOMContentLoaded', () => {
+  setupVirementsForm();
+});

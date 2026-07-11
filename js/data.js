@@ -8,6 +8,7 @@ const DEFAULT_DATA = {
   depenses_fixes: [],
   depenses_variables: [],
   abonnements: [],
+  virements: [],          // { id, type: 'epargne'|'retrait'|'tiers', montant, date, destination?, beneficiaire?, frequence, commentaire }
   couple: {
     active: false,
     personne1: { nom: 'Personne 1' },
@@ -211,16 +212,117 @@ function today() {
   return new Date().toISOString().slice(0, 10);
 }
 
+// --- CALCULS VIREMENTS ---
+
+function getVirementsMois(data, mois, annee) {
+  return (data.virements || []).filter(v => {
+    if (!v.date) return false;
+    const d = new Date(v.date);
+    return d.getMonth() === mois && d.getFullYear() === annee;
+  });
+}
+
+// Virements récurrents mensuels (fréquence = mensuel) : toujours comptés
+function getVirementsRecurrents(data) {
+  return (data.virements || []).filter(v => v.frequence === 'mensuel');
+}
+
+// Total épargne versée ce mois (virements type epargne)
+function getTotalEpargneMois(data, mois, annee) {
+  const ponctuels = getVirementsMois(data, mois, annee).filter(v => v.type === 'epargne');
+  const recurrents = getVirementsRecurrents(data).filter(v => v.type === 'epargne');
+  // Éviter les doublons : si un récurrent a une date ce mois, il est dans ponctuels
+  const recIds = new Set(ponctuels.map(v => v.id));
+  const extraRec = recurrents.filter(v => !recIds.has(v.id));
+  return [...ponctuels, ...extraRec].reduce((s, v) => s + parseFloat(v.montant || 0), 0);
+}
+
+// Total retraits ce mois
+function getTotalRetraitMois(data, mois, annee) {
+  return getVirementsMois(data, mois, annee)
+    .filter(v => v.type === 'retrait')
+    .reduce((s, v) => s + parseFloat(v.montant || 0), 0);
+}
+
+// Solde livret estimé (cumulé toute l'année en cours)
+function getSoldeLivretAnnee(data, annee) {
+  let solde = 0;
+  for (let m = 0; m <= 11; m++) {
+    const items = getVirementsMois(data, m, annee);
+    items.forEach(v => {
+      if (v.type === 'epargne') solde += parseFloat(v.montant || 0);
+      if (v.type === 'retrait') solde -= parseFloat(v.montant || 0);
+    });
+  }
+  // Ajouter les récurrents sans date précise (comptés chaque mois jusqu'au mois courant)
+  const now = new Date();
+  const currentM = annee === now.getFullYear() ? now.getMonth() : 11;
+  getVirementsRecurrents(data).forEach(v => {
+    // Vérifier qu'ils n'ont pas déjà de date dans l'année (sinon double compte)
+    const hasDateInYear = (data.virements || []).some(
+      u => u.id === v.id && u.date && new Date(u.date).getFullYear() === annee
+    );
+    if (!hasDateInYear) {
+      const months = currentM + 1;
+      const montant = parseFloat(v.montant || 0) * months;
+      if (v.type === 'epargne') solde += montant;
+      if (v.type === 'retrait') solde -= montant;
+    }
+  });
+  return Math.max(0, solde);
+}
+
+// --- VALIDATION ---
+function validateMontant(val) {
+  const n = parseFloat(val);
+  return !isNaN(n) && n > 0 && n < 1_000_000;
+}
+
+function validateNom(val) {
+  return val && val.trim().length >= 1 && val.trim().length <= 100;
+}
+
+// --- EXPORT JSON (pour backup manuel) ---
+function exportJSON() {
+  const blob = new Blob([JSON.stringify(AppState.data, null, 2)], { type: 'application/json' });
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement('a');
+  a.href = url;
+  a.download = `monbudget-backup-${new Date().toISOString().slice(0,10)}.json`;
+  a.click();
+  URL.revokeObjectURL(url);
+}
+
+// --- IMPORT JSON ---
+function importJSON(jsonString) {
+  try {
+    const data = JSON.parse(jsonString);
+    if (!data.revenus || !data.depenses_fixes) throw new Error('Format invalide');
+    return data;
+  } catch (e) {
+    throw new Error('Fichier JSON invalide : ' + e.message);
+  }
+}
+
 // Cat icon map
 const CAT_ICONS = {
   Courses: 'fa-basket-shopping', Essence: 'fa-gas-pump', Restaurant: 'fa-utensils',
   Loisirs: 'fa-gamepad', Shopping: 'fa-bag-shopping', Santé: 'fa-heart-pulse',
-  Vacances: 'fa-plane', Cadeaux: 'fa-gift', Divers: 'fa-ellipsis',
+  Vacances: 'fa-plane', Cadeaux: 'fa-gift', Famille: 'fa-people-roof', Divers: 'fa-ellipsis',
   logement: 'fa-house', energie: 'fa-bolt', transports: 'fa-car',
-  assurances: 'fa-shield-halved', sante: 'fa-heart-pulse', education: 'fa-graduation-cap', autre: 'fa-ellipsis'
+  assurances: 'fa-shield-halved', sante: 'fa-heart-pulse', education: 'fa-graduation-cap',
+  famille: 'fa-people-roof', autre: 'fa-ellipsis'
 };
 
 const CAT_LABELS = {
   logement: 'Logement', energie: 'Énergie', transports: 'Transports',
-  assurances: 'Assurances', sante: 'Santé', education: 'Éducation', autre: 'Autre'
+  assurances: 'Assurances', sante: 'Santé', education: 'Éducation',
+  famille: 'Famille', autre: 'Autre'
+};
+
+const VTYPE_LABELS = {
+  epargne: 'Épargne', retrait: 'Retrait', tiers: 'Tiers'
+};
+const VTYPE_ICONS = {
+  epargne: 'fa-piggy-bank', retrait: 'fa-hand-holding-dollar', tiers: 'fa-people-roof'
 };
