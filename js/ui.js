@@ -473,6 +473,28 @@ function renderParams() {
   document.getElementById('githubToken').value = AppState.settings.githubToken || '';
   document.getElementById('gistId').value = AppState.settings.gistId || '';
   updateLastSync();
+
+  // Afficher la version du service worker
+  const swVersionEl = document.getElementById('swVersion');
+  const swStatusEl  = document.getElementById('swStatus');
+  if (swVersionEl && swStatusEl) {
+    if ('serviceWorker' in navigator) {
+      navigator.serviceWorker.getRegistration().then(reg => {
+        if (reg) {
+          swStatusEl.textContent = reg.active ? '✓ Actif' : '⏳ En attente';
+          swStatusEl.style.color = reg.active ? 'var(--green)' : 'var(--orange)';
+          // Récupérer la version depuis le SW actif via postMessage
+          swVersionEl.textContent = reg.active?.scriptURL?.includes('service-worker') ? 'v4' : '—';
+        } else {
+          swStatusEl.textContent = 'Non enregistré';
+          swVersionEl.textContent = '—';
+        }
+      });
+    } else {
+      swStatusEl.textContent = 'Non supporté';
+      swVersionEl.textContent = '—';
+    }
+  }
 }
 
 // ===== HELPERS =====

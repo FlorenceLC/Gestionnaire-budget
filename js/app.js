@@ -377,6 +377,33 @@ function setupParams() {
     navigateTo('dashboard');
   });
 
+  // Effacer les identifiants GitHub
+  document.getElementById('clearCredentials').addEventListener('click', () => {
+    if (!confirm('Effacer le token et l\'ID Gist sauvegardés sur cet appareil ?')) return;
+    clearSettings();
+    document.getElementById('githubToken').value = '';
+    document.getElementById('gistId').value = '';
+    const status = document.getElementById('connectionStatus');
+    status.textContent = 'Identifiants effacés.';
+    status.className = 'connection-status ok';
+    showToast('Identifiants effacés', 'success');
+  });
+
+  // Vider le cache Service Worker et recharger
+  document.getElementById('clearCache').addEventListener('click', async () => {
+    if (!confirm('Vider le cache et recharger l\'application ?')) return;
+    if ('caches' in window) {
+      const keys = await caches.keys();
+      await Promise.all(keys.map(k => caches.delete(k)));
+    }
+    if ('serviceWorker' in navigator) {
+      const reg = await navigator.serviceWorker.getRegistration();
+      if (reg) await reg.unregister();
+    }
+    showToast('Cache vidé — rechargement…', 'success');
+    setTimeout(() => window.location.reload(true), 800);
+  });
+
   // Export JSON
   document.getElementById('exportJSON').addEventListener('click', () => {
     exportJSON();
@@ -499,7 +526,29 @@ function clearForm(type) {
 // ===== PWA =====
 function setupPWA() {
   if ('serviceWorker' in navigator) {
-    navigator.serviceWorker.register('service-worker.js').catch(() => {});
+    navigator.serviceWorker.register('service-worker.js')
+      .then(reg => {
+        console.log('[MonBudget] SW enregistré, scope :', reg.scope);
+
+        // Détecter une mise à jour disponible
+        reg.addEventListener('updatefound', () => {
+          const newWorker = reg.installing;
+          newWorker?.addEventListener('statechange', () => {
+            if (newWorker.state === 'installed' && navigator.serviceWorker.controller) {
+              // Un nouveau SW est prêt — proposer de recharger
+              showUpdateBanner();
+            }
+          });
+        });
+      })
+      .catch(err => console.warn('[MonBudget] SW non enregistré :', err));
+
+    // Écouter les messages du SW (notification de mise à jour)
+    navigator.serviceWorker.addEventListener('message', event => {
+      if (event.data?.type === 'SW_UPDATED') {
+        showUpdateBanner();
+      }
+    });
   }
 
   let deferredPrompt;
@@ -507,6 +556,30 @@ function setupPWA() {
     e.preventDefault();
     deferredPrompt = e;
   });
+}
+
+function showUpdateBanner() {
+  // Éviter d'afficher deux fois
+  if (document.getElementById('updateBanner')) return;
+  const banner = document.createElement('div');
+  banner.id = 'updateBanner';
+  banner.style.cssText = `
+    position: fixed; top: 0; left: 0; right: 0; z-index: 999;
+    background: var(--green); color: #fff;
+    padding: 0.75rem 1rem;
+    display: flex; align-items: center; justify-content: space-between;
+    font-size: 0.875rem; font-weight: 600;
+    box-shadow: 0 2px 12px rgba(0,0,0,0.3);
+  `;
+  banner.innerHTML = `
+    <span><i class="fa-solid fa-circle-up" style="margin-right:0.5rem"></i>Une mise à jour est disponible !</span>
+    <button onclick="window.location.reload(true)" style="
+      background: rgba(255,255,255,0.25); border: none; color: #fff;
+      padding: 0.35rem 0.9rem; border-radius: 6px; font-weight: 700;
+      cursor: pointer; font-size: 0.8rem;
+    ">Recharger</button>
+  `;
+  document.body.prepend(banner);
 }
 
 // ===== KEYBOARD SHORTCUTS =====

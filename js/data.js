@@ -39,23 +39,45 @@ let AppState = {
   }
 };
 
-// --- SETTINGS (session uniquement via sessionStorage pour sécurité) ---
+// --- SETTINGS (localStorage avec obfuscation légère) ---
+// Le token est stocké obfusqué (base64 inversé) — pas du vrai chiffrement,
+// mais le token n'apparaît pas en clair dans les DevTools.
+// L'utilisateur NE doit PAS mettre son token en dur dans le code.
+const STORAGE_KEY = 'mb_cfg';
+
+function _obfuscate(str) {
+  try { return btoa(unescape(encodeURIComponent(str))).split('').reverse().join(''); }
+  catch (e) { return str; }
+}
+function _deobfuscate(str) {
+  try { return decodeURIComponent(escape(atob(str.split('').reverse().join('')))); }
+  catch (e) { return str; }
+}
+
 function loadSettings() {
   try {
-    const raw = sessionStorage.getItem('monbudget_settings');
-    if (raw) {
-      const s = JSON.parse(raw);
-      AppState.settings = { ...AppState.settings, ...s };
-    }
+    const raw = localStorage.getItem(STORAGE_KEY);
+    if (!raw) return;
+    const parsed = JSON.parse(raw);
+    AppState.settings.githubToken = parsed.t ? _deobfuscate(parsed.t) : '';
+    AppState.settings.gistId      = parsed.g ? _deobfuscate(parsed.g) : '';
   } catch (e) { /* ignore */ }
 }
 
 function saveSettings(token, gistId) {
   AppState.settings.githubToken = token;
-  AppState.settings.gistId = gistId;
+  AppState.settings.gistId      = gistId;
   try {
-    sessionStorage.setItem('monbudget_settings', JSON.stringify(AppState.settings));
+    localStorage.setItem(STORAGE_KEY, JSON.stringify({
+      t: token  ? _obfuscate(token)  : '',
+      g: gistId ? _obfuscate(gistId) : ''
+    }));
   } catch (e) { /* ignore */ }
+}
+
+function clearSettings() {
+  localStorage.removeItem(STORAGE_KEY);
+  AppState.settings = { githubToken: '', gistId: '' };
 }
 
 // --- HELPERS ID ---
