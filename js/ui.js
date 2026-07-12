@@ -127,22 +127,43 @@ function renderDashboard() {
   document.getElementById('currentMonthLabel').textContent =
     capitalizeFirst(getMonthLabel(m, y));
 
-  const revenus   = getRevenusMensuels(data, m, y);
-  const fixes     = getDepensesFixes(data);
-  const abos      = getAbonnementsMensuels(data);
-  const variables = getDepensesVariablesMois(data, m, y);
-  const total     = fixes + abos + variables;
-  const reste     = revenus - total;
+  const revenus    = getRevenusMensuels(data, m, y);
+  const fixes      = getDepensesFixes(data);
+  const abos       = getAbonnementsMensuels(data);
+  const variables  = getDepensesVariablesMois(data, m, y);
+  // Les virements épargne ET tiers sortent du compte courant → réduisent le reste à vivre
+  // Les retraits livret le réaugmentent (on récupère de l'argent)
+  const epargneVerse  = getTotalEpargneMois(data, m, y);   // type='epargne' → sort
+  const epargneRepris = getTotalRetraitMois(data, m, y);   // type='retrait' → rentre
+  const tiersMois     = getVirementsMois(data, m, y)
+    .filter(v => v.type === 'tiers')
+    .reduce((s, v) => s + parseFloat(v.montant || 0), 0);
+  // Virements récurrents tiers sans date précise ce mois
+  const tiersRec = getVirementsRecurrents(data)
+    .filter(v => v.type === 'tiers')
+    .filter(v => !getVirementsMois(data, m, y).find(u => u.id === v.id))
+    .reduce((s, v) => s + parseFloat(v.montant || 0), 0);
+  const totalTiers    = tiersMois + tiersRec;
+  const totalSorties  = fixes + abos + variables + epargneVerse + totalTiers;
+  const total         = totalSorties - epargneRepris;  // les retraits compensent
+  const reste         = revenus - total;
 
   document.getElementById('summaryRevenus').textContent     = formatMoney(revenus);
   document.getElementById('summaryFixes').textContent       = formatMoney(fixes);
   document.getElementById('summaryVariables').textContent   = formatMoney(variables);
   document.getElementById('summaryAbonnements').textContent = formatMoney(abos);
-  const epNet = getTotalEpargneMois(data, m, y) - getTotalRetraitMois(data, m, y);
+  // Virements sortants ce mois (épargne + tiers − retraits)
+  const virEl = document.getElementById('summaryVirements');
+  if (virEl) {
+    const virNet = epargneVerse + totalTiers - epargneRepris;
+    virEl.textContent = formatMoney(virNet);
+    virEl.className = 'card-value' + (virNet < 0 ? ' negative' : '');
+  }
+  const epNet = epargneVerse - epargneRepris;
   const epEl  = document.getElementById('summaryEpargne');
   if (epEl) {
-    epEl.textContent = formatMoney(epNet);
-    epEl.className = 'card-value' + (epNet >= 0 ? '' : ' negative');
+    epEl.textContent = formatMoney(Math.abs(epNet));
+    epEl.className = 'card-value' + (epNet < 0 ? ' negative' : '');
   }
 
   // Hero
