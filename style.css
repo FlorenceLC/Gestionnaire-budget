@@ -428,6 +428,10 @@ input, select, textarea { font-family: inherit; font-size: inherit; }
   border: 1px solid var(--border);
   border-radius: var(--radius-sm);
   transition: border-color var(--transition);
+  min-width: 0;        /* empêche le débordement flex */
+  overflow: hidden;    /* coupe tout ce qui dépasse */
+  width: 100%;
+  box-sizing: border-box;
 }
 .list-item:hover { border-color: var(--border-light); }
 .list-item.inactive { opacity: 0.5; }
@@ -441,28 +445,34 @@ input, select, textarea { font-family: inherit; font-size: inherit; }
   font-size: 0.9rem;
   flex-shrink: 0;
 }
-.item-info { flex: 1; min-width: 0; }
+.item-info { flex: 1; min-width: 0; overflow: hidden; }
 .item-name {
   font-size: 0.9rem;
   font-weight: 500;
   white-space: nowrap;
   overflow: hidden;
   text-overflow: ellipsis;
+  max-width: 100%;
 }
 .item-meta {
   font-size: 0.75rem;
   color: var(--text-3);
   margin-top: 1px;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
 }
 .item-amount {
   font-size: 0.95rem;
   font-weight: 700;
   font-variant-numeric: tabular-nums;
   white-space: nowrap;
+  flex-shrink: 0;   /* le montant ne se compresse jamais */
 }
 .item-actions {
   display: flex;
   gap: 0.25rem;
+  flex-shrink: 0;
   opacity: 0;
   transition: opacity var(--transition);
 }
@@ -903,7 +913,29 @@ input, select, textarea { font-family: inherit; font-size: inherit; }
   .settings-actions .btn-primary,
   .settings-actions .btn-outline { width: 100%; justify-content: center; }
   .btn-primary, .btn-outline { padding: 0.7rem 1rem; }
-  .item-actions { opacity: 1; }
+
+  /* Sur mobile : boutons d'action toujours visibles mais ultra-compacts */
+  .item-actions {
+    opacity: 1;
+    gap: 0.1rem;
+  }
+  .item-actions button {
+    padding: 0.25rem;
+    font-size: 0.75rem;
+  }
+  /* Réduire le gap global du list-item pour récupérer de l'espace */
+  .list-item {
+    gap: 0.5rem;
+    padding: 0.65rem 0.6rem;
+  }
+  .item-icon {
+    width: 32px;
+    height: 32px;
+    font-size: 0.8rem;
+  }
+  .item-amount {
+    font-size: 0.85rem;
+  }
 }
 
 @media (max-width: 400px) {
@@ -1173,3 +1205,6 @@ input[type=number]::-webkit-inner-spin-button { -webkit-appearance: none; }
 }
 .version-row span { color: var(--text-2); }
 .version-row strong { font-variant-numeric: tabular-nums; }
+
+/* Card teal (virements) */
+.card-teal .card-icon { background: rgba(6,182,212,0.15); color: #06B6D4; }
