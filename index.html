@@ -417,9 +417,14 @@
           <input type="text" class="input" id="gistId" placeholder="ex: a1b2c3d4e5f6..." />
           <p class="hint">Laisser vide pour créer un nouveau Gist automatiquement</p>
         </div>
+        <div class="hint" style="margin-bottom:0.75rem; padding:0.6rem 0.75rem; background:var(--green-dim); border-radius:var(--radius-sm); border:1px solid rgba(16,185,129,0.3);">
+          <i class="fa-solid fa-shield-halved" style="color:var(--green)"></i>
+          Vos identifiants sont <strong>sauvegardés en local</strong> sur cet appareil et persistent entre les sessions. Ils ne transitent jamais vers un serveur tiers.
+        </div>
         <div class="settings-actions">
           <button class="btn-primary" id="saveSettings"><i class="fa-solid fa-floppy-disk"></i> Enregistrer</button>
           <button class="btn-outline" id="testConnection"><i class="fa-solid fa-plug"></i> Tester la connexion</button>
+          <button class="btn-outline" id="clearCredentials" style="color:var(--red);border-color:var(--red)"><i class="fa-solid fa-eraser"></i> Effacer les identifiants</button>
         </div>
         <div class="connection-status" id="connectionStatus"></div>
       </div>
@@ -440,6 +445,25 @@
             <i class="fa-solid fa-upload"></i> Importer JSON
             <input type="file" id="importJSON" accept=".json" style="display:none" />
           </label>
+        </div>
+      </div>
+      <div class="settings-card">
+        <h3><i class="fa-solid fa-rotate"></i> Version & Cache</h3>
+        <div class="version-info">
+          <div class="version-row">
+            <span>Version du cache</span>
+            <strong id="swVersion">—</strong>
+          </div>
+          <div class="version-row">
+            <span>Statut Service Worker</span>
+            <strong id="swStatus">—</strong>
+          </div>
+        </div>
+        <p class="hint" style="margin-top:0.75rem; margin-bottom:0.75rem">
+          Si l'application n'affiche pas les dernières modifications après une mise à jour, videz le cache ci-dessous.
+        </p>
+        <div class="settings-actions">
+          <button class="btn-outline" id="clearCache"><i class="fa-solid fa-trash-can"></i> Vider le cache et recharger</button>
         </div>
       </div>
       <div class="settings-card danger-zone">

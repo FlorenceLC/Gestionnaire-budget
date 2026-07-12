@@ -1,9 +1,14 @@
 /**
  * service-worker.js — PWA Service Worker
- * Stratégie : Cache-First pour les assets statiques
+ *
+ * IMPORTANT : Changer CACHE_VERSION à chaque déploiement force
+ * le navigateur à télécharger les nouveaux fichiers immédiatement.
+ * Le numéro de version est aussi affiché dans les paramètres.
  */
 
-const CACHE_NAME = 'monbudget-v1';
+const CACHE_VERSION = 'v4';  // ← incrémenter à chaque mise à jour
+const CACHE_NAME = `monbudget-${CACHE_VERSION}`;
+
 const ASSETS_TO_CACHE = [
   './',
   './index.html',
@@ -23,29 +28,41 @@ const ASSETS_TO_CACHE = [
 
 // Installation : mise en cache des assets
 self.addEventListener('install', event => {
+  // skipWaiting immédiat : le nouveau SW prend la main sans attendre
+  self.skipWaiting();
   event.waitUntil(
-    caches.open(CACHE_NAME).then(cache => {
-      return Promise.allSettled(
-        ASSETS_TO_CACHE.map(url => cache.add(url).catch(() => null))
-      );
-    }).then(() => self.skipWaiting())
+    caches.open(CACHE_NAME).then(cache =>
+      Promise.allSettled(ASSETS_TO_CACHE.map(url => cache.add(url).catch(() => null)))
+    )
   );
 });
 
-// Activation : nettoyage des anciens caches
+// Activation : supprime TOUS les anciens caches et prend le contrôle immédiatement
 self.addEventListener('activate', event => {
   event.waitUntil(
-    caches.keys().then(keys =>
-      Promise.all(keys.filter(k => k !== CACHE_NAME).map(k => caches.delete(k)))
-    ).then(() => self.clients.claim())
+    caches.keys()
+      .then(keys => Promise.all(
+        keys.filter(k => k !== CACHE_NAME).map(k => {
+          console.log('[SW] Suppression ancien cache :', k);
+          return caches.delete(k);
+        })
+      ))
+      .then(() => self.clients.claim())   // prend le contrôle de tous les onglets ouverts
+      .then(() => {
+        // Notifie tous les onglets qu'une mise à jour est disponible
+        self.clients.matchAll().then(clients =>
+          clients.forEach(c => c.postMessage({ type: 'SW_UPDATED', version: CACHE_VERSION }))
+        );
+      })
   );
 });
 
-// Fetch : Cache-First pour assets locaux, Network-First pour API GitHub
+// Fetch : Network-First pour les fichiers de l'app (toujours à jour),
+//         Cache-First uniquement pour les CDN externes
 self.addEventListener('fetch', event => {
   const url = new URL(event.request.url);
 
-  // Toujours réseau pour l'API GitHub
+  // API GitHub → toujours réseau, jamais de cache
   if (url.hostname === 'api.github.com') {
     event.respondWith(
       fetch(event.request).catch(() =>
@@ -58,21 +75,30 @@ self.addEventListener('fetch', event => {
     return;
   }
 
-  // Cache-First pour tout le reste
+  // CDN externes (fonts, FA, Chart.js) → Cache-First (rarement mis à jour)
+  const isExternal = url.hostname !== self.location.hostname;
+  if (isExternal) {
+    event.respondWith(
+      caches.match(event.request).then(cached => cached || fetch(event.request))
+    );
+    return;
+  }
+
+  // Fichiers de l'app → Network-First : on va chercher la version fraîche,
+  // et on sert le cache uniquement si le réseau échoue (mode offline)
   event.respondWith(
-    caches.match(event.request).then(cached => {
-      if (cached) return cached;
-      return fetch(event.request).then(response => {
-        if (!response || response.status !== 200 || response.type === 'error') return response;
-        const clone = response.clone();
-        caches.open(CACHE_NAME).then(cache => cache.put(event.request, clone));
-        return response;
-      }).catch(() => {
-        // Page offline de secours
-        if (event.request.destination === 'document') {
-          return caches.match('./index.html');
+    fetch(event.request)
+      .then(response => {
+        if (response && response.status === 200) {
+          const clone = response.clone();
+          caches.open(CACHE_NAME).then(cache => cache.put(event.request, clone));
         }
-      });
-    })
+        return response;
+      })
+      .catch(() => caches.match(event.request).then(cached =>
+        cached || (event.request.destination === 'document'
+          ? caches.match('./index.html')
+          : null)
+      ))
   );
 });

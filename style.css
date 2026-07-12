@@ -1154,3 +1154,22 @@ input[type=number]::-webkit-inner-spin-button { -webkit-appearance: none; }
 .cards-grid { grid-template-columns: repeat(2, 1fr); }
 @media (min-width: 640px) { .cards-grid { grid-template-columns: repeat(3, 1fr); } }
 @media (min-width: 900px) { .cards-grid { grid-template-columns: repeat(5, 1fr); } }
+
+/* ===== VERSION INFO ===== */
+.version-info {
+  display: flex;
+  flex-direction: column;
+  gap: 0.4rem;
+  background: var(--bg);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-sm);
+  padding: 0.75rem 1rem;
+}
+.version-row {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  font-size: 0.85rem;
+}
+.version-row span { color: var(--text-2); }
+.version-row strong { font-variant-numeric: tabular-nums; }
